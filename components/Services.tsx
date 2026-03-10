@@ -6,6 +6,7 @@ import {
   AnimatePresence,
   MotionValue,
   useSpring,
+  useMotionValueEvent,
 } from 'framer-motion';
 import { X, CheckCircle2 } from 'lucide-react';
 import { ServiceCardProps } from '../types';
@@ -200,6 +201,7 @@ const Services: React.FC = () => {
 
   const [wrapperHeightPx, setWrapperHeightPx] = useState<number>(0);
   const [navOffsetPx, setNavOffsetPx] = useState<number>(110);
+  const [activeMobileCard, setActiveMobileCard] = useState<number>(1);
 
   useEffect(() => {
     const calc = () => {
@@ -236,6 +238,16 @@ const Services: React.FC = () => {
     mass: 0.5,
   });
 
+  useMotionValueEvent(smoothProgress, 'change', (latest) => {
+    if (latest < 0.38) {
+      setActiveMobileCard(1);
+    } else if (latest < 0.66) {
+      setActiveMobileCard(2);
+    } else {
+      setActiveMobileCard(3);
+    }
+  });
+
   const bigTitleOpacity = useTransform(smoothProgress, [0, 0.12], [0, 0.07]);
   const titleOpacity = useTransform(smoothProgress, [0, 0.12], [0, 1]);
   const titleY = useTransform(smoothProgress, [0, 0.12], [10, 0]);
@@ -243,13 +255,68 @@ const Services: React.FC = () => {
   const titleMobileOpacity = useTransform(smoothProgress, [0, 0.12], [0, 1]);
   const titleMobileY = useTransform(smoothProgress, [0, 0.12], [14, 0]);
 
-  const mCard1Range: [number, number] = [0.12, 0.4];
-  const mCard2Range: [number, number] = [0.42, 0.7];
-  const mCard3Range: [number, number] = [0.72, 1.0];
+  const mCard1EnterStart = 0.12;
+  const mCard1ActiveStart = 0.2;
+  const mCard1ExitStart = 0.34;
+  const mCard1ExitEnd = 0.46;
 
-  const mCard1X = useTransform(smoothProgress, mCard1Range, ['105vw', '0vw']);
-  const mCard2X = useTransform(smoothProgress, mCard2Range, ['105vw', '0vw']);
-  const mCard3X = useTransform(smoothProgress, mCard3Range, ['105vw', '0vw']);
+  const mCard2PreviewStart = 0.12;
+  const mCard2EnterStart = 0.38;
+  const mCard2ActiveStart = 0.48;
+  const mCard2ExitStart = 0.62;
+  const mCard2ExitEnd = 0.74;
+
+  const mCard3PreviewStart = 0.42;
+  const mCard3EnterStart = 0.66;
+  const mCard3ActiveStart = 0.76;
+
+  const mCard1Y = useTransform(
+    smoothProgress,
+    [mCard1EnterStart, mCard1ActiveStart, mCard1ExitStart, mCard1ExitEnd],
+    [26, 0, -10, -44]
+  );
+  const mCard1Scale = useTransform(
+    smoothProgress,
+    [mCard1EnterStart, mCard1ActiveStart, mCard1ExitStart, mCard1ExitEnd],
+    [0.985, 1, 0.988, 0.965]
+  );
+  const mCard1Opacity = useTransform(
+    smoothProgress,
+    [mCard1EnterStart, mCard1ActiveStart, mCard1ExitStart, mCard1ExitEnd],
+    [0.82, 1, 0.94, 0.72]
+  );
+
+  const mCard2Y = useTransform(
+    smoothProgress,
+    [mCard2PreviewStart, mCard2EnterStart, mCard2ActiveStart, mCard2ExitStart, mCard2ExitEnd],
+    [58, 42, 0, -10, -44]
+  );
+  const mCard2Scale = useTransform(
+    smoothProgress,
+    [mCard2PreviewStart, mCard2EnterStart, mCard2ActiveStart, mCard2ExitStart, mCard2ExitEnd],
+    [0.955, 0.965, 1, 0.988, 0.965]
+  );
+  const mCard2Opacity = useTransform(
+    smoothProgress,
+    [mCard2PreviewStart, mCard2EnterStart, mCard2ActiveStart, mCard2ExitStart, mCard2ExitEnd],
+    [0.58, 0.72, 1, 0.94, 0.72]
+  );
+
+  const mCard3Y = useTransform(
+    smoothProgress,
+    [mCard3PreviewStart, mCard3EnterStart, mCard3ActiveStart, 1],
+    [58, 42, 0, 0]
+  );
+  const mCard3Scale = useTransform(
+    smoothProgress,
+    [mCard3PreviewStart, mCard3EnterStart, mCard3ActiveStart, 1],
+    [0.955, 0.965, 1, 1]
+  );
+  const mCard3Opacity = useTransform(
+    smoothProgress,
+    [mCard3PreviewStart, mCard3EnterStart, mCard3ActiveStart, 1],
+    [0.58, 0.72, 1, 1]
+  );
 
   const serviceData = useMemo(
     () => [
@@ -413,16 +480,16 @@ const Services: React.FC = () => {
                     description="From preventive technical support to seamless vendor coordination, we handle every operational detail. Our dedicated team acts as your local eyes and ears."
                     direction="up"
                     progress={smoothProgress}
-                    range={mCard1Range}
+                    range={[0.12, 0.18]}
                     onExplore={() => setSelectedService(1)}
                     style={{
-                      x: mCard1X,
-                      opacity: 1,
-                      y: 0,
-                      scale: 1,
+                      y: mCard1Y,
+                      scale: mCard1Scale,
+                      opacity: mCard1Opacity,
                       position: 'absolute',
                       inset: 0,
-                      zIndex: 10,
+                      zIndex: activeMobileCard === 1 ? 30 : 20,
+                      pointerEvents: activeMobileCard === 1 ? 'auto' : 'none',
                     }}
                   />
 
@@ -433,16 +500,16 @@ const Services: React.FC = () => {
                     description="Professional cleaning services for homes and commercial spaces, including routine, deep, and specialized cleaning, delivering spotless results and consistently high standards."
                     direction="up"
                     progress={smoothProgress}
-                    range={mCard2Range}
+                    range={[0.38, 0.46]}
                     onExplore={() => setSelectedService(2)}
                     style={{
-                      x: mCard2X,
-                      opacity: 1,
-                      y: 0,
-                      scale: 1,
+                      y: mCard2Y,
+                      scale: mCard2Scale,
+                      opacity: mCard2Opacity,
                       position: 'absolute',
                       inset: 0,
-                      zIndex: 20,
+                      zIndex: activeMobileCard === 2 ? 30 : activeMobileCard === 1 ? 20 : 20,
+                      pointerEvents: activeMobileCard === 2 ? 'auto' : 'none',
                     }}
                   />
 
@@ -453,16 +520,16 @@ const Services: React.FC = () => {
                     description="Personalized concierge services for owners and guests, including guest assistance, reservations, and lifestyle support, creating seamless experiences and complete peace of mind."
                     direction="up"
                     progress={smoothProgress}
-                    range={mCard3Range}
+                    range={[0.66, 0.74]}
                     onExplore={() => setSelectedService(3)}
                     style={{
-                      x: mCard3X,
-                      opacity: 1,
-                      y: 0,
-                      scale: 1,
+                      y: mCard3Y,
+                      scale: mCard3Scale,
+                      opacity: mCard3Opacity,
                       position: 'absolute',
                       inset: 0,
-                      zIndex: 30,
+                      zIndex: activeMobileCard === 3 ? 30 : 10,
+                      pointerEvents: activeMobileCard === 3 ? 'auto' : 'none',
                     }}
                   />
                 </div>
