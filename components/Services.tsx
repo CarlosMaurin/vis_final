@@ -208,11 +208,12 @@ const Services: React.FC = () => {
       const vh = window.innerHeight;
       const vw = window.innerWidth;
 
-      let screens = 5.2;
+      let screens = 6.15;
       if (vw >= 768) screens = 4.8;
       if (vw >= 1024) screens = 4.4;
       if (vw >= 1366) screens = 4.9;
-      if (vh < 720) screens += 0.5;
+      if (vw < 768 && vh < 780) screens += 0.35;
+      if (vh < 720) screens += 0.25;
 
       setWrapperHeightPx(Math.round(vh * screens));
       setNavOffsetPx(vw >= 768 ? 120 : 104);
@@ -233,13 +234,15 @@ const Services: React.FC = () => {
   });
 
   const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 65,
-    damping: 22,
-    mass: 0.5,
+    stiffness: 90,
+    damping: 28,
+    mass: 0.42,
   });
 
-  useMotionValueEvent(smoothProgress, 'change', (latest) => {
-    if (latest < 0.38) {
+  const mobileProgress = scrollYProgress;
+
+  useMotionValueEvent(mobileProgress, 'change', (latest) => {
+    if (latest < 0.36) {
       setActiveMobileCard(1);
     } else if (latest < 0.66) {
       setActiveMobileCard(2);
@@ -252,70 +255,56 @@ const Services: React.FC = () => {
   const titleOpacity = useTransform(smoothProgress, [0, 0.12], [0, 1]);
   const titleY = useTransform(smoothProgress, [0, 0.12], [10, 0]);
 
-  const titleMobileOpacity = useTransform(smoothProgress, [0, 0.12], [0, 1]);
-  const titleMobileY = useTransform(smoothProgress, [0, 0.12], [14, 0]);
-
-  const mCard1EnterStart = 0.12;
-  const mCard1ActiveStart = 0.2;
-  const mCard1ExitStart = 0.34;
-  const mCard1ExitEnd = 0.46;
-
-  const mCard2PreviewStart = 0.12;
-  const mCard2EnterStart = 0.38;
-  const mCard2ActiveStart = 0.48;
-  const mCard2ExitStart = 0.62;
-  const mCard2ExitEnd = 0.74;
-
-  const mCard3PreviewStart = 0.42;
-  const mCard3EnterStart = 0.66;
-  const mCard3ActiveStart = 0.76;
+  const titleMobileOpacity = useTransform(mobileProgress, [0.03, 0.13, 0.19], [0, 1, 1]);
+  const titleMobileY = useTransform(mobileProgress, [0.03, 0.13], [22, 0]);
+  const titleMobileScale = useTransform(mobileProgress, [0.03, 0.13], [0.985, 1]);
 
   const mCard1Y = useTransform(
-    smoothProgress,
-    [mCard1EnterStart, mCard1ActiveStart, mCard1ExitStart, mCard1ExitEnd],
-    [26, 0, -10, -44]
+    mobileProgress,
+    [0.18, 0.28, 0.36, 0.44],
+    [150, 0, 0, -26]
   );
   const mCard1Scale = useTransform(
-    smoothProgress,
-    [mCard1EnterStart, mCard1ActiveStart, mCard1ExitStart, mCard1ExitEnd],
-    [0.985, 1, 0.988, 0.965]
+    mobileProgress,
+    [0.18, 0.28, 0.36, 0.44],
+    [0.94, 1, 1, 0.984]
   );
   const mCard1Opacity = useTransform(
-    smoothProgress,
-    [mCard1EnterStart, mCard1ActiveStart, mCard1ExitStart, mCard1ExitEnd],
-    [0.82, 1, 0.94, 0.72]
+    mobileProgress,
+    [0.18, 0.28, 0.36, 0.44],
+    [0, 1, 1, 0.82]
   );
 
   const mCard2Y = useTransform(
-    smoothProgress,
-    [mCard2PreviewStart, mCard2EnterStart, mCard2ActiveStart, mCard2ExitStart, mCard2ExitEnd],
-    [58, 42, 0, -10, -44]
+    mobileProgress,
+    [0.44, 0.56, 0.66, 0.74],
+    [170, 0, 0, -26]
   );
   const mCard2Scale = useTransform(
-    smoothProgress,
-    [mCard2PreviewStart, mCard2EnterStart, mCard2ActiveStart, mCard2ExitStart, mCard2ExitEnd],
-    [0.955, 0.965, 1, 0.988, 0.965]
+    mobileProgress,
+    [0.44, 0.56, 0.66, 0.74],
+    [0.94, 1, 1, 0.984]
   );
   const mCard2Opacity = useTransform(
-    smoothProgress,
-    [mCard2PreviewStart, mCard2EnterStart, mCard2ActiveStart, mCard2ExitStart, mCard2ExitEnd],
-    [0.58, 0.72, 1, 0.94, 0.72]
+    mobileProgress,
+    [0.44, 0.56, 0.66, 0.74],
+    [0, 1, 1, 0.84]
   );
 
   const mCard3Y = useTransform(
-    smoothProgress,
-    [mCard3PreviewStart, mCard3EnterStart, mCard3ActiveStart, 1],
-    [58, 42, 0, 0]
+    mobileProgress,
+    [0.72, 0.84, 0.96, 1],
+    [170, 0, 0, 0]
   );
   const mCard3Scale = useTransform(
-    smoothProgress,
-    [mCard3PreviewStart, mCard3EnterStart, mCard3ActiveStart, 1],
-    [0.955, 0.965, 1, 1]
+    mobileProgress,
+    [0.72, 0.84, 0.96, 1],
+    [0.94, 1, 1, 1]
   );
   const mCard3Opacity = useTransform(
-    smoothProgress,
-    [mCard3PreviewStart, mCard3EnterStart, mCard3ActiveStart, 1],
-    [0.58, 0.72, 1, 1]
+    mobileProgress,
+    [0.72, 0.84, 0.96, 1],
+    [0, 1, 1, 1]
   );
 
   const serviceData = useMemo(
@@ -430,7 +419,14 @@ const Services: React.FC = () => {
               </div>
 
               <div className="md:hidden mb-10">
-                <motion.div style={{ opacity: titleMobileOpacity, y: titleMobileY }} className="text-center">
+                <motion.div
+                  style={{
+                    opacity: titleMobileOpacity,
+                    y: titleMobileY,
+                    scale: titleMobileScale,
+                  }}
+                  className="text-center"
+                >
                   <h2 className="text-4xl font-bold text-primary tracking-tight uppercase mb-4">
                     OUR SERVICES
                   </h2>
@@ -472,7 +468,7 @@ const Services: React.FC = () => {
               </div>
 
               <div className="md:hidden relative flex-1 flex items-center justify-center">
-                <div className="relative w-full" style={{ height: 'clamp(320px, 44vh, 460px)' }}>
+                <div className="relative w-full" style={{ height: 'clamp(350px, 48vh, 500px)' }}>
                   <ServiceCard
                     number="#01"
                     category="Estate Management"
@@ -480,7 +476,7 @@ const Services: React.FC = () => {
                     description="From preventive technical support to seamless vendor coordination, we handle every operational detail. Our dedicated team acts as your local eyes and ears."
                     direction="up"
                     progress={smoothProgress}
-                    range={[0.12, 0.18]}
+                    range={[0.18, 0.28]}
                     onExplore={() => setSelectedService(1)}
                     style={{
                       y: mCard1Y,
@@ -500,7 +496,7 @@ const Services: React.FC = () => {
                     description="Professional cleaning services for homes and commercial spaces, including routine, deep, and specialized cleaning, delivering spotless results and consistently high standards."
                     direction="up"
                     progress={smoothProgress}
-                    range={[0.38, 0.46]}
+                    range={[0.44, 0.56]}
                     onExplore={() => setSelectedService(2)}
                     style={{
                       y: mCard2Y,
@@ -520,7 +516,7 @@ const Services: React.FC = () => {
                     description="Personalized concierge services for owners and guests, including guest assistance, reservations, and lifestyle support, creating seamless experiences and complete peace of mind."
                     direction="up"
                     progress={smoothProgress}
-                    range={[0.66, 0.74]}
+                    range={[0.72, 0.84]}
                     onExplore={() => setSelectedService(3)}
                     style={{
                       y: mCard3Y,
