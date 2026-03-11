@@ -125,9 +125,9 @@ const Testimonials: React.FC = () => {
       logoAlt: 'Elevated Escapes logo',
     },
     {
-      author: 'Aspen',
+      author: 'Aspen Business Services',
       role: 'Client',
-      company: 'Aspen',
+      company: 'Aspen Business Services',
       quote:
         'Aspen Business Services highly recommends Village Integral Services (VIS) for their exceptional professionalism and technical competence.',
       description:
@@ -137,14 +137,16 @@ const Testimonials: React.FC = () => {
       logoAlt: 'Aspen Business Services logo',
     },
     {
-      author: 'SelfStay',
+      author: 'Aspen Leisure',
       role: 'Client',
-      company: 'SelfStay',
+      company: 'Aspen Leisure Co',
       quote:
-        'As the Market Manager for Fairly (rental management platform), I rely on expert local property caretakers to be the boots-on-the-ground contacts for homeowners and guests.',
+        'We have worked with VIS for many years, and they have been an essential part of our growth in the vacation rental space. As we expanded our portfolio, they did not just keep up - they partnered with us to make it possible.',
       description:
-        "I am so glad I partnered with VIS Home Services to represent our Aspen market! Florencia, Geremias are professional, responsive, reliable, and deeply knowledgeable local hosts. We're excited to continue partnering with them for our new rental homes, knowing they offer extensive services and have an outstanding local reputation - they know everyone in Aspen! VIS Home Services is an invaluable asset to any rental property in town.",
+        "Their team is consistently reliable, detail-oriented, and professional, which is critical in the vacation rental business where every turnover matters. In a business and location where perfection matters, they are always listening and improving. We cannot recommend them enough!",
       avatar: '',
+      logo: 'https://res.cloudinary.com/deit2ncmp/image/upload/v1773160653/aspen_leisure_gnql1s.png',
+      logoAlt: 'Aspen Leisure logo',
     },
   ];
 
