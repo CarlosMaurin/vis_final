@@ -4,6 +4,7 @@ import Hero from './components/Hero';
 import ServicesIntro from './components/ServicesIntro';
 import Services from './components/Services';
 import TeamSection from './components/TeamSection';
+import BBBTrustBanner from './components/BBBTrustBanner';
 import B2CSection from './components/B2CSection';
 import Testimonials from './components/Testimonials';
 import WorkProcess from './components/WorkProcess';
@@ -16,10 +17,9 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate initial asset loading
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 2800); // Premium feel loading duration
+    }, 2800);
 
     return () => clearTimeout(timer);
   }, []);
@@ -31,12 +31,12 @@ const App: React.FC = () => {
       {!isLoading && <Navbar />}
 
       <main>
-        {/* ✅ Hero se monta cuando termina el loader, así se ve la animación */}
         {!isLoading && <Hero onComplete={() => setHeroComplete(true)} />}
 
         <div className="relative z-10 bg-cream">
           <ServicesIntro />
           <Services />
+          <BBBTrustBanner />
           <TeamSection />
           <B2CSection />
 
