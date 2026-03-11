@@ -39,10 +39,8 @@ const App: React.FC = () => {
           <BBBTrustBanner />
           <TeamSection />
           <B2CSection />
-
           <WorkProcess />
           <Testimonials />
-
           <ContactForm />
           <Footer />
         </div>
