@@ -17,7 +17,7 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
   logoAlt,
 }) => {
   const cardStyle: React.CSSProperties = {
-    background: 'rgba(217, 217, 217, 0.58)',
+    background: 'rgba(245, 249, 250, 0.92)',   // cream (#F5F9FA) unificado con la sección
     border: '1px solid white',
     boxShadow: '12px 17px 51px rgba(0, 0, 0, 0.22)',
     backdropFilter: 'blur(6px)',
@@ -37,7 +37,6 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
         min-h-[clamp(340px,56vh,400px)]
         p-[clamp(16px,2.2vw,28px)]
         flex flex-col justify-between
-        transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 cursor-pointer
       "
     >
       <div className="flex flex-col h-full">
@@ -208,14 +207,12 @@ const Testimonials: React.FC = () => {
     const isMobile       = viewportWidth < 768;
 
     if (isMobile) {
-      // Mobile uses natural document flow — no fixed height needed
       setStartScrollToCenter(0);
       setMaxScrollToCenter(0);
       setSectionHeightPx(null);
       return;
     }
 
-    // ── Desktop: original logic, completely unchanged ──
     if (!trackRef.current) return;
 
     const cards = Array.from(
@@ -306,7 +303,7 @@ const Testimonials: React.FC = () => {
     [0, 0.4, 0.4, 0]
   );
 
-  // ── Section height: auto on mobile, calculated on desktop ─────────────────
+  // ── Section height ─────────────────────────────────────────────────────────
   const sectionStyle = useMemo<React.CSSProperties>(() => {
     if (isMobileView) return {};
     return sectionHeightPx ? { height: `${sectionHeightPx}px` } : { height: '640vh' };
@@ -426,7 +423,7 @@ const Testimonials: React.FC = () => {
       ══════════════════════════════════════════════════════════════════ */}
       <div className="md:hidden w-full flex flex-col items-center pt-[clamp(72px,10vh,100px)] pb-16">
 
-        {/* Title: fade + slide up on scroll into view */}
+        {/* Title */}
         <motion.div
           initial={{ opacity: 0, y: 80 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -440,7 +437,7 @@ const Testimonials: React.FC = () => {
           <div className="h-1.5 bg-accent mx-auto rounded-full" style={{ width: '120px' }} />
         </motion.div>
 
-        {/* Cards area: fade + slide up on scroll into view */}
+        {/* Cards area */}
         <motion.div
           initial={{ opacity: 0, y: 60 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -452,7 +449,6 @@ const Testimonials: React.FC = () => {
           {/* ── Arrow indicators ─────────────────────────────────────── */}
           <div className="flex items-center justify-center gap-10 mb-4">
 
-            {/* Left arrow */}
             <button
               aria-label="Previous testimonial"
               onClick={() => scrollToCard(activeCard - 1)}
@@ -472,7 +468,6 @@ const Testimonials: React.FC = () => {
               </svg>
             </button>
 
-            {/* Right arrow */}
             <button
               aria-label="Next testimonial"
               onClick={() => scrollToCard(activeCard + 1)}
@@ -520,7 +515,6 @@ const Testimonials: React.FC = () => {
                 <TestimonialCard {...t} />
               </div>
             ))}
-            {/* trailing spacer so last card centres properly */}
             <div style={{ flexShrink: 0, width: '12vw' }} />
           </div>
 
