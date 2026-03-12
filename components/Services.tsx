@@ -273,16 +273,15 @@ const Services: React.FC = () => {
     mass: 0.42,
   });
 
-  // ── Mobile card trigger thresholds ────────────────────────────────────────
+  // ── Mobile card trigger thresholds (bidirectional) ───────────────────────
   // Card 1 → 0.22 | Card 2 → 0.48 | Card 3 → 0.72
   // Raw scrollYProgress (no spring) for crisp threshold detection.
+  // Scroll down → cards stack in. Scroll up → cards unstack back down.
   useMotionValueEvent(scrollYProgress, 'change', (latest) => {
-    setMobileCardsEntered((prev) => {
-      if (latest >= 0.72 && prev < 3) return 3;
-      if (latest >= 0.48 && prev < 2) return 2;
-      if (latest >= 0.22 && prev < 1) return 1;
-      return prev;
-    });
+    if (latest >= 0.72)      setMobileCardsEntered(3);
+    else if (latest >= 0.48) setMobileCardsEntered(2);
+    else if (latest >= 0.22) setMobileCardsEntered(1);
+    else                     setMobileCardsEntered(0);
   });
   // ──────────────────────────────────────────────────────────────────────────
 
