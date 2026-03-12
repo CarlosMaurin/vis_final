@@ -196,10 +196,23 @@ const Testimonials: React.FC = () => {
   }, [logoUrls]);
 
   const calculateBounds = useCallback(() => {
-    if (!trackRef.current) return;
-
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
+    const isMobile = viewportWidth < 768;
+
+    // ── MOBILE: no scroll-jacking needed, use shorter section height ──
+    if (isMobile) {
+      setStartScrollToCenter(0);
+      setMaxScrollToCenter(0);
+      // Enough height for: title animation + cards entry + comfortable hold
+      const intro = viewportHeight * 1.0;
+      const extra = viewportHeight * 0.7;
+      setSectionHeightPx(viewportHeight + intro + extra);
+      return;
+    }
+
+    // ── DESKTOP: original logic unchanged ──
+    if (!trackRef.current) return;
 
     const cards = Array.from(
       trackRef.current.querySelectorAll<HTMLElement>('[data-testimonial-card]')
@@ -210,10 +223,9 @@ const Testimonials: React.FC = () => {
       setStartScrollToCenter(0);
       setMaxScrollToCenter(fallbackMax);
 
-      const isMobile = viewportWidth < 768;
-      const intro = isMobile ? viewportHeight * 1.0 : viewportHeight * 0.9;
-      const horizontal = fallbackMax * (isMobile ? 1.55 : 1.35);
-      const extra = viewportHeight * (isMobile ? 0.7 : 0.55);
+      const intro = viewportHeight * 0.9;
+      const horizontal = fallbackMax * 1.35;
+      const extra = viewportHeight * 0.55;
 
       setSectionHeightPx(viewportHeight + intro + horizontal + extra);
       return;
@@ -234,10 +246,9 @@ const Testimonials: React.FC = () => {
     setStartScrollToCenter(start);
     setMaxScrollToCenter(end);
 
-    const isMobile = viewportWidth < 768;
-    const intro = isMobile ? viewportHeight * 1.0 : viewportHeight * 0.9;
-    const horizontal = (end - start) * (isMobile ? 1.55 : 1.35);
-    const extra = viewportHeight * (isMobile ? 0.7 : 0.55);
+    const intro = viewportHeight * 0.9;
+    const horizontal = (end - start) * 1.35;
+    const extra = viewportHeight * 0.55;
 
     setSectionHeightPx(viewportHeight + intro + horizontal + extra);
   }, []);
@@ -278,8 +289,6 @@ const Testimonials: React.FC = () => {
 
   const isMobileProgressStart = 0.18;
   const isMobileProgressCenter = 0.34;
-  const isMobileHorizontalStart = 0.38;
-  const isMobileHorizontalEnd = 0.9;
 
   const mobileCardsY = useTransform(
     smoothProgress,
@@ -291,11 +300,6 @@ const Testimonials: React.FC = () => {
     [isMobileProgressStart + 0.03, isMobileProgressCenter - 0.01],
     [0, 1]
   );
-  const mobileFirstCardScale = useTransform(
-    smoothProgress,
-    [isMobileProgressStart, isMobileProgressCenter],
-    [0.96, 1]
-  );
 
   const desktopCardsY = useTransform(smoothProgress, [0.12, 0.32], ['100vh', '0vh']);
   const desktopCardsOpacity = useTransform(smoothProgress, [0.18, 0.3], [0, 1]);
@@ -305,16 +309,6 @@ const Testimonials: React.FC = () => {
     [0, 0.34, 0.42, 0.90],
     [
       `-${startScrollToCenter}px`,
-      `-${startScrollToCenter}px`,
-      `-${startScrollToCenter}px`,
-      `-${maxScrollToCenter}px`,
-    ]
-  );
-
-  const mobileHorizontalX = useTransform(
-    smoothProgress,
-    [0, isMobileHorizontalStart, isMobileHorizontalEnd],
-    [
       `-${startScrollToCenter}px`,
       `-${startScrollToCenter}px`,
       `-${maxScrollToCenter}px`,
@@ -353,6 +347,7 @@ const Testimonials: React.FC = () => {
           />
         </motion.div>
 
+        {/* ── DESKTOP: original scroll-jacking horizontal, unchanged ── */}
         <div className="relative z-10 w-full hidden md:block">
           <motion.div style={{ y: desktopCardsY, opacity: desktopCardsOpacity }}>
             <motion.div
@@ -368,26 +363,39 @@ const Testimonials: React.FC = () => {
           </motion.div>
         </div>
 
-        <div className="relative z-10 w-full md:hidden overflow-hidden">
+        {/* ── MOBILE: native horizontal swipe with scroll-snap ── */}
+        <div className="relative z-10 w-full md:hidden">
           <motion.div
             style={{ y: mobileCardsY, opacity: mobileCardsOpacity }}
             className="w-full"
           >
-            <motion.div
-              ref={trackRef}
-              style={{ x: mobileHorizontalX }}
-              className="flex gap-[16px] px-[calc(50vw-45vw)] py-10 w-max"
+            <div
+              className="flex gap-[16px] py-10 w-full"
+              style={{
+                overflowX: 'scroll',
+                overflowY: 'hidden',
+                scrollSnapType: 'x mandatory',
+                WebkitOverflowScrolling: 'touch',
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+                paddingLeft: 'calc(50vw - 45vw)',
+                paddingRight: 'calc(50vw - 45vw)',
+              }}
             >
+              {/* hide native scrollbar on webkit */}
+              <style>{`
+                .testimonials-mobile-track::-webkit-scrollbar { display: none; }
+              `}</style>
               {testimonials.map((t, i) => (
-                <motion.div
+                <div
                   key={i}
-                  style={i === 0 ? { scale: mobileFirstCardScale } : undefined}
+                  style={{ scrollSnapAlign: 'center', flexShrink: 0 }}
                 >
                   <TestimonialCard {...t} />
-                </motion.div>
+                </div>
               ))}
-              <div className="flex-shrink-0 w-[12vw]" />
-            </motion.div>
+              <div style={{ flexShrink: 0, width: '12vw' }} />
+            </div>
           </motion.div>
         </div>
 
