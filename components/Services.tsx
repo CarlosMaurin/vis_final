@@ -11,12 +11,32 @@ import {
 import { X, CheckCircle2 } from 'lucide-react';
 import { ServiceCardProps } from '../types';
 
+// ─── Mobile card animation states ────────────────────────────────────────────
+type MobileCardState = 'hidden' | 'active' | 'stacked-1' | 'stacked-2';
+
+const MOBILE_STATES: Record<MobileCardState, object> = {
+  hidden:      { y: 160, opacity: 0,    scale: 0.92  },
+  active:      { y: 0,   opacity: 1,    scale: 1     },
+  'stacked-1': { y: 14,  opacity: 0.78, scale: 0.955 },
+  'stacked-2': { y: 22,  opacity: 0.58, scale: 0.915 },
+};
+
+const MOBILE_SPRING = {
+  type: 'spring' as const,
+  stiffness: 280,
+  damping: 26,
+  mass: 0.8,
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface AnimatedServiceCardProps extends ServiceCardProps {
   progress: MotionValue<number>;
   range: [number, number];
   onExplore: () => void;
   className?: string;
   style?: any;
+  /** When provided the card uses trigger-based spring animation (mobile only) */
+  mobileCardState?: MobileCardState;
 }
 
 const ServiceCard: React.FC<AnimatedServiceCardProps> = ({
@@ -29,12 +49,17 @@ const ServiceCard: React.FC<AnimatedServiceCardProps> = ({
   onExplore,
   className = '',
   style = {},
+  mobileCardState,
 }) => {
-  const opacity = useTransform(progress, range, [0, 1]);
+  // Desktop: scroll-driven transforms
+  const opacity    = useTransform(progress, range, [0, 1]);
   const translateY = useTransform(progress, range, [60, 0]);
-  const scale = useTransform(progress, range, [0.975, 1]);
+  const scale      = useTransform(progress, range, [0.975, 1]);
 
-  const PAD = 'clamp(18px, 2.2vw, 34px)';
+  // If mobileCardState is provided we are in mobile trigger-mode
+  const isMobile = mobileCardState != null;
+
+  const PAD         = 'clamp(18px, 2.2vw, 34px)';
   const FOOTER_SAFE = 'clamp(72px, 10vh, 110px)';
 
   const borderStyle: React.CSSProperties = {
@@ -53,10 +78,11 @@ const ServiceCard: React.FC<AnimatedServiceCardProps> = ({
 
   return (
     <motion.div
+      initial={isMobile ? MOBILE_STATES.hidden : undefined}
+      animate={isMobile ? MOBILE_STATES[mobileCardState] : undefined}
+      transition={isMobile ? MOBILE_SPRING : undefined}
       style={{
-        opacity,
-        y: translateY,
-        scale,
+        ...(isMobile ? {} : { opacity, y: translateY, scale }),
         height: 'clamp(320px, 44vh, 460px)',
         ...style,
       }}
@@ -66,16 +92,9 @@ const ServiceCard: React.FC<AnimatedServiceCardProps> = ({
 
       <div
         className="relative z-10 h-full"
-        style={{
-          padding: PAD,
-        }}
+        style={{ padding: PAD }}
       >
-        <div
-          className="h-full"
-          style={{
-            paddingBottom: FOOTER_SAFE,
-          }}
-        >
+        <div className="h-full" style={{ paddingBottom: FOOTER_SAFE }}>
           <div>
             <div
               className="inline-flex items-center rounded-full bg-white/5 backdrop-blur-md border border-white/10 font-bold uppercase tracking-[0.18em] text-accent"
@@ -115,11 +134,7 @@ const ServiceCard: React.FC<AnimatedServiceCardProps> = ({
 
         <div
           className="absolute flex items-end justify-between"
-          style={{
-            left: PAD,
-            right: PAD,
-            bottom: PAD,
-          }}
+          style={{ left: PAD, right: PAD, bottom: PAD }}
         >
           <button
             onClick={(e) => {
@@ -146,10 +161,7 @@ const ServiceCard: React.FC<AnimatedServiceCardProps> = ({
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
                 className="transition-transform duration-300 ease-in-out group-hover/btn:translate-x-[150%] group-hover/btn:-translate-y-[150%]"
-                style={{
-                  width: 'clamp(10px, 0.9vw, 12px)',
-                  height: 'clamp(10px, 0.9vw, 12px)',
-                }}
+                style={{ width: 'clamp(10px, 0.9vw, 12px)', height: 'clamp(10px, 0.9vw, 12px)' }}
               >
                 <path
                   d="M13.376 11.552l-.264-10.44-10.44-.24.024 2.28 6.96-.048L.2 12.56l1.488 1.488 9.432-9.432-.048 6.912 2.304.024z"
@@ -162,10 +174,7 @@ const ServiceCard: React.FC<AnimatedServiceCardProps> = ({
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
                 className="absolute transition-transform duration-300 ease-in-out translate-x-[-150%] translate-y-[150%] group-hover/btn:translate-x-0 group-hover/btn:translate-y-0 delay-75"
-                style={{
-                  width: 'clamp(10px, 0.9vw, 12px)',
-                  height: 'clamp(10px, 0.9vw, 12px)',
-                }}
+                style={{ width: 'clamp(10px, 0.9vw, 12px)', height: 'clamp(10px, 0.9vw, 12px)' }}
               >
                 <path
                   d="M13.376 11.552l-.264-10.44-10.44-.24.024 2.28 6.96-.048L.2 12.56l1.488 1.488 9.432-9.432-.048 6.912 2.304.024z"
@@ -200,20 +209,45 @@ const Services: React.FC = () => {
   const [selectedService, setSelectedService] = useState<number | null>(null);
 
   const [wrapperHeightPx, setWrapperHeightPx] = useState<number>(0);
-  const [navOffsetPx, setNavOffsetPx] = useState<number>(110);
-  const [activeMobileCard, setActiveMobileCard] = useState<number>(1);
+  const [navOffsetPx, setNavOffsetPx]         = useState<number>(110);
+
+  // ── Mobile stacking state ──────────────────────────────────────────────────
+  // How many cards have been triggered (0–3).
+  // Only advances forward — scrolling back keeps cards in their stacked state.
+  const [mobileCardsEntered, setMobileCardsEntered] = useState(0);
+
+  const getMobileCardState = (cardNumber: 1 | 2 | 3): MobileCardState => {
+    const diff = mobileCardsEntered - cardNumber;
+    if (diff < 0)   return 'hidden';
+    if (diff === 0) return 'active';
+    if (diff === 1) return 'stacked-1';
+    return 'stacked-2';
+  };
+
+  const getMobileZIndex = (cardNumber: 1 | 2 | 3): number => {
+    const diff = mobileCardsEntered - cardNumber;
+    if (diff < 0)   return 5;
+    if (diff === 0) return 30;
+    if (diff === 1) return 20;
+    return 10;
+  };
+
+  const getMobilePointerEvents = (cardNumber: 1 | 2 | 3) =>
+    mobileCardsEntered === cardNumber ? 'auto' : 'none';
+  // ──────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const calc = () => {
       const vh = window.innerHeight;
       const vw = window.innerWidth;
 
-      let screens = 5.75;
-      if (vw >= 768) screens = 4.8;
+      // Desktop screens unchanged. Mobile: 6.15 → 4.0 (3 card beats + title)
+      let screens = 4.0;
+      if (vw >= 768)  screens = 4.8;
       if (vw >= 1024) screens = 4.4;
       if (vw >= 1366) screens = 4.9;
-      if (vw < 768 && vh < 780) screens += 0.25;
-      if (vh < 720) screens += 0.2;
+      if (vw < 768 && vh < 780) screens += 0.2;
+      if (vh < 720)  screens += 0.15;
 
       setWrapperHeightPx(Math.round(vh * screens));
       setNavOffsetPx(vw >= 768 ? 120 : 104);
@@ -239,77 +273,28 @@ const Services: React.FC = () => {
     mass: 0.42,
   });
 
-  const mobileProgress = useSpring(scrollYProgress, {
-    stiffness: 118,
-    damping: 30,
-    mass: 0.34,
+  // ── Mobile card trigger thresholds ────────────────────────────────────────
+  // Card 1 → 0.22 | Card 2 → 0.48 | Card 3 → 0.72
+  // Raw scrollYProgress (no spring) for crisp threshold detection.
+  useMotionValueEvent(scrollYProgress, 'change', (latest) => {
+    setMobileCardsEntered((prev) => {
+      if (latest >= 0.72 && prev < 3) return 3;
+      if (latest >= 0.48 && prev < 2) return 2;
+      if (latest >= 0.22 && prev < 1) return 1;
+      return prev;
+    });
   });
+  // ──────────────────────────────────────────────────────────────────────────
 
-  useMotionValueEvent(mobileProgress, 'change', (latest) => {
-    if (latest < 0.36) {
-      setActiveMobileCard(1);
-    } else if (latest < 0.66) {
-      setActiveMobileCard(2);
-    } else {
-      setActiveMobileCard(3);
-    }
-  });
-
+  // Desktop title animations (unchanged)
   const bigTitleOpacity = useTransform(smoothProgress, [0, 0.12], [0, 0.07]);
-  const titleOpacity = useTransform(smoothProgress, [0, 0.12], [0, 1]);
-  const titleY = useTransform(smoothProgress, [0, 0.12], [10, 0]);
+  const titleOpacity    = useTransform(smoothProgress, [0, 0.12], [0, 1]);
+  const titleY          = useTransform(smoothProgress, [0, 0.12], [10, 0]);
 
-  const titleMobileOpacity = useTransform(mobileProgress, [0.03, 0.13, 0.19], [0, 1, 1]);
-  const titleMobileY = useTransform(mobileProgress, [0.03, 0.13], [22, 0]);
-  const titleMobileScale = useTransform(mobileProgress, [0.03, 0.13], [0.985, 1]);
-
-  const mCard1Y = useTransform(
-    mobileProgress,
-    [0.14, 0.22, 0.34, 0.46, 1],
-    [88, 0, 0, -24, -24]
-  );
-  const mCard1Scale = useTransform(
-    mobileProgress,
-    [0.14, 0.22, 0.34, 0.46, 1],
-    [0.965, 1, 1, 0.972, 0.972]
-  );
-  const mCard1Opacity = useTransform(
-    mobileProgress,
-    [0.14, 0.22, 0.34, 0.46, 1],
-    [0, 1, 1, 0.58, 0.58]
-  );
-
-  const mCard2Y = useTransform(
-    mobileProgress,
-    [0.00, 0.30, 0.40, 0.50, 0.64, 0.76, 1],
-    [68, 68, 54, 0, 0, -24, -24]
-  );
-  const mCard2Scale = useTransform(
-    mobileProgress,
-    [0.00, 0.30, 0.40, 0.50, 0.64, 0.76, 1],
-    [0.985, 0.985, 0.988, 1, 1, 0.972, 0.972]
-  );
-  const mCard2Opacity = useTransform(
-    mobileProgress,
-    [0.00, 0.30, 0.40, 0.50, 0.64, 0.76, 1],
-    [0.18, 0.18, 0.42, 1, 1, 0.58, 0.58]
-  );
-
-  const mCard3Y = useTransform(
-    mobileProgress,
-    [0.00, 0.54, 0.66, 0.78, 1],
-    [94, 94, 56, 0, 0]
-  );
-  const mCard3Scale = useTransform(
-    mobileProgress,
-    [0.00, 0.54, 0.66, 0.78, 1],
-    [0.975, 0.975, 0.988, 1, 1]
-  );
-  const mCard3Opacity = useTransform(
-    mobileProgress,
-    [0.00, 0.54, 0.66, 0.78, 1],
-    [0.1, 0.1, 0.38, 1, 1]
-  );
+  // Mobile title animations (unchanged)
+  const titleMobileOpacity = useTransform(scrollYProgress, [0.03, 0.13, 0.19], [0, 1, 1]);
+  const titleMobileY       = useTransform(scrollYProgress, [0.03, 0.13], [22, 0]);
+  const titleMobileScale   = useTransform(scrollYProgress, [0.03, 0.13], [0.985, 1]);
 
   const serviceData = useMemo(
     () => [
@@ -355,35 +340,20 @@ const Services: React.FC = () => {
           scrollbar-color: rgba(49, 103, 101, 0.58) transparent;
           scroll-behavior: smooth;
         }
-      
-        .elegant-scroll::-webkit-scrollbar {
-          width: 8px;
-        }
-      
+        .elegant-scroll::-webkit-scrollbar { width: 8px; }
         .elegant-scroll::-webkit-scrollbar-track {
           background: transparent;
           border-radius: 999px;
           margin: 10px 0;
         }
-      
         .elegant-scroll::-webkit-scrollbar-thumb {
-          background: linear-gradient(
-            180deg,
-            rgba(124, 168, 122, 0.92) 0%,
-            rgba(49, 103, 101, 0.92) 100%
-          );
+          background: linear-gradient(180deg, rgba(124,168,122,0.92) 0%, rgba(49,103,101,0.92) 100%);
           border-radius: 999px;
-          border: 1.5px solid rgba(255, 255, 255, 0.95);
+          border: 1.5px solid rgba(255,255,255,0.95);
         }
-      
         .elegant-scroll::-webkit-scrollbar-thumb:hover {
-          background: linear-gradient(
-            180deg,
-            rgba(124, 168, 122, 1) 0%,
-            rgba(49, 103, 101, 1) 100%
-          );
+          background: linear-gradient(180deg, rgba(124,168,122,1) 0%, rgba(49,103,101,1) 100%);
         }
-      
         .modal-scroll-area {
           height: 100%;
           overflow-y: auto;
@@ -401,6 +371,8 @@ const Services: React.FC = () => {
         <div className="sticky top-0 h-screen w-full overflow-hidden px-6">
           <div className="max-w-7xl mx-auto w-full h-full">
             <div className="h-full flex flex-col justify-center pt-28 md:pt-32 pb-16 md:pb-20">
+
+              {/* ── Desktop title (unchanged) ─────────────────────────── */}
               <div className="hidden md:block relative mb-10 lg:mb-12">
                 <motion.h2
                   style={{ opacity: bigTitleOpacity }}
@@ -422,6 +394,7 @@ const Services: React.FC = () => {
                 </motion.div>
               </div>
 
+              {/* ── Mobile title (unchanged) ──────────────────────────── */}
               <div className="md:hidden mb-10">
                 <motion.div
                   style={{
@@ -438,6 +411,7 @@ const Services: React.FC = () => {
                 </motion.div>
               </div>
 
+              {/* ── Desktop cards (unchanged) ─────────────────────────── */}
               <div className="hidden md:grid grid-cols-3 gap-10 lg:gap-12 items-stretch">
                 <ServiceCard
                   number="#01"
@@ -471,8 +445,14 @@ const Services: React.FC = () => {
                 />
               </div>
 
+              {/* ── Mobile cards — stacking animation ────────────────────
+                  Each card triggers independently via scroll threshold.
+                  Spring animation snaps card to position on a single scroll
+                  gesture. Previous cards peek from behind as a visible deck.
+              ─────────────────────────────────────────────────────────── */}
               <div className="md:hidden relative flex-1 flex items-center justify-center">
-                <div className="relative w-full" style={{ height: 'clamp(360px, 49vh, 510px)' }}>
+                <div className="relative w-full" style={{ height: 'clamp(350px, 48vh, 500px)' }}>
+
                   <ServiceCard
                     number="#01"
                     category="Estate Management"
@@ -480,16 +460,14 @@ const Services: React.FC = () => {
                     description="From preventive technical support to seamless vendor coordination, we handle every operational detail. Our dedicated team acts as your local eyes and ears."
                     direction="up"
                     progress={smoothProgress}
-                    range={[0.14, 0.22]}
+                    range={[0.18, 0.28]}
                     onExplore={() => setSelectedService(1)}
+                    mobileCardState={getMobileCardState(1)}
                     style={{
-                      y: mCard1Y,
-                      scale: mCard1Scale,
-                      opacity: mCard1Opacity,
                       position: 'absolute',
                       inset: 0,
-                      zIndex: activeMobileCard === 1 ? 30 : 20,
-                      pointerEvents: activeMobileCard === 1 ? 'auto' : 'none',
+                      zIndex: getMobileZIndex(1),
+                      pointerEvents: getMobilePointerEvents(1),
                     }}
                   />
 
@@ -500,16 +478,14 @@ const Services: React.FC = () => {
                     description="Professional cleaning services for homes and commercial spaces, including routine, deep, and specialized cleaning, delivering spotless results and consistently high standards."
                     direction="up"
                     progress={smoothProgress}
-                    range={[0.40, 0.50]}
+                    range={[0.44, 0.56]}
                     onExplore={() => setSelectedService(2)}
+                    mobileCardState={getMobileCardState(2)}
                     style={{
-                      y: mCard2Y,
-                      scale: mCard2Scale,
-                      opacity: mCard2Opacity,
                       position: 'absolute',
                       inset: 0,
-                      zIndex: activeMobileCard === 2 ? 30 : activeMobileCard === 3 ? 10 : 20,
-                      pointerEvents: activeMobileCard === 2 ? 'auto' : 'none',
+                      zIndex: getMobileZIndex(2),
+                      pointerEvents: getMobilePointerEvents(2),
                     }}
                   />
 
@@ -520,25 +496,26 @@ const Services: React.FC = () => {
                     description="Personalized concierge services for owners and guests, including guest assistance, reservations, and lifestyle support, creating seamless experiences and complete peace of mind."
                     direction="up"
                     progress={smoothProgress}
-                    range={[0.66, 0.78]}
+                    range={[0.72, 0.84]}
                     onExplore={() => setSelectedService(3)}
+                    mobileCardState={getMobileCardState(3)}
                     style={{
-                      y: mCard3Y,
-                      scale: mCard3Scale,
-                      opacity: mCard3Opacity,
                       position: 'absolute',
                       inset: 0,
-                      zIndex: activeMobileCard === 3 ? 30 : 10,
-                      pointerEvents: activeMobileCard === 3 ? 'auto' : 'none',
+                      zIndex: getMobileZIndex(3),
+                      pointerEvents: getMobilePointerEvents(3),
                     }}
                   />
+
                 </div>
               </div>
+
             </div>
           </div>
         </div>
       </div>
 
+      {/* ── Modal (completely unchanged) ────────────────────────────────── */}
       <AnimatePresence>
         {selectedService !== null && (
           <>
@@ -583,12 +560,7 @@ const Services: React.FC = () => {
                       <X className="w-5 h-5" />
                     </button>
 
-                    <div
-                      className="h-full flex flex-col"
-                      style={{
-                        paddingTop: '6px',
-                      }}
-                    >
+                    <div className="h-full flex flex-col" style={{ paddingTop: '6px' }}>
                       <div className="flex-shrink-0 pr-12">
                         <div className="inline-block px-4 py-1.5 rounded-full bg-accent/10 text-[10px] text-accent font-black uppercase tracking-[0.2em] mb-4">
                           Service Details
