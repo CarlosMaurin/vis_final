@@ -98,6 +98,7 @@ const Testimonials: React.FC = () => {
   const [maxScrollToCenter, setMaxScrollToCenter] = useState(0);
   const [sectionHeightPx, setSectionHeightPx] = useState<number | null>(null);
   const [logosReady, setLogosReady] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const testimonials: TestimonialItem[] = [
     {
@@ -157,6 +158,18 @@ const Testimonials: React.FC = () => {
   }, [testimonials]);
 
   useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    window.addEventListener('orientationchange', checkMobile);
+
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      window.removeEventListener('orientationchange', checkMobile);
+    };
+  }, []);
+
+  useEffect(() => {
     if (logoUrls.length === 0) {
       setLogosReady(true);
       return;
@@ -210,10 +223,18 @@ const Testimonials: React.FC = () => {
       setStartScrollToCenter(0);
       setMaxScrollToCenter(fallbackMax);
 
-      const intro = viewportHeight * 0.9;
-      const horizontal = fallbackMax * 1.35;
-      const extra = viewportHeight * 0.55;
-      setSectionHeightPx(viewportHeight + intro + horizontal + extra);
+      if (viewportWidth < 768) {
+        const intro = viewportHeight * 1.0;
+        const horizontal = fallbackMax * 1.55;
+        const extra = viewportHeight * 0.65;
+        setSectionHeightPx(viewportHeight + intro + horizontal + extra);
+      } else {
+        const intro = viewportHeight * 0.9;
+        const horizontal = fallbackMax * 1.35;
+        const extra = viewportHeight * 0.55;
+        setSectionHeightPx(viewportHeight + intro + horizontal + extra);
+      }
+
       return;
     }
 
@@ -232,11 +253,17 @@ const Testimonials: React.FC = () => {
     setStartScrollToCenter(start);
     setMaxScrollToCenter(end);
 
-    const intro = viewportHeight * 0.9;
-    const horizontal = (end - start) * 1.35;
-    const extra = viewportHeight * 0.55;
-
-    setSectionHeightPx(viewportHeight + intro + horizontal + extra);
+    if (viewportWidth < 768) {
+      const intro = viewportHeight * 1.0;
+      const horizontal = (end - start) * 1.55;
+      const extra = viewportHeight * 0.65;
+      setSectionHeightPx(viewportHeight + intro + horizontal + extra);
+    } else {
+      const intro = viewportHeight * 0.9;
+      const horizontal = (end - start) * 1.35;
+      const extra = viewportHeight * 0.55;
+      setSectionHeightPx(viewportHeight + intro + horizontal + extra);
+    }
   }, []);
 
   useEffect(() => {
@@ -248,11 +275,13 @@ const Testimonials: React.FC = () => {
     const timeout2 = setTimeout(calculateBounds, 300);
 
     window.addEventListener('resize', calculateBounds);
+    window.addEventListener('orientationchange', calculateBounds);
 
     return () => {
       clearTimeout(timeout1);
       clearTimeout(timeout2);
       window.removeEventListener('resize', calculateBounds);
+      window.removeEventListener('orientationchange', calculateBounds);
     };
   }, [logosReady, calculateBounds]);
 
@@ -267,16 +296,45 @@ const Testimonials: React.FC = () => {
     restDelta: 0.001,
   });
 
-  const titleOpacity = useTransform(smoothProgress, [0, 0.06, 0.18, 0.3], [0, 1, 1, 0]);
-  const titleScale = useTransform(smoothProgress, [0.18, 0.3], [1, 0.7]);
-  const titleY = useTransform(smoothProgress, [0, 0.06], ['80px', '0px']);
+  const titleOpacity = useTransform(
+    smoothProgress,
+    isMobile ? [0, 0.05, 0.14, 0.22] : [0, 0.06, 0.18, 0.3],
+    [0, 1, 1, 0]
+  );
 
-  const cardsY = useTransform(smoothProgress, [0.12, 0.32], ['100vh', '0vh']);
-  const cardsOpacity = useTransform(smoothProgress, [0.18, 0.3], [0, 1]);
+  const titleScale = useTransform(
+    smoothProgress,
+    isMobile ? [0.14, 0.22] : [0.18, 0.3],
+    [1, 0.7]
+  );
+
+  const titleY = useTransform(
+    smoothProgress,
+    isMobile ? [0, 0.05] : [0, 0.06],
+    ['80px', '0px']
+  );
+
+  const desktopCardsY = useTransform(smoothProgress, [0.12, 0.32], ['100vh', '0vh']);
+  const desktopCardsOpacity = useTransform(smoothProgress, [0.18, 0.3], [0, 1]);
+
+  const mobileCardsY = useTransform(
+    smoothProgress,
+    [0.12, 0.22, 0.28, 1],
+    ['100vh', '0vh', '0vh', '0vh']
+  );
+
+  const mobileCardsOpacity = useTransform(
+    smoothProgress,
+    [0.14, 0.22],
+    [0, 1]
+  );
+
+  const cardsY = isMobile ? mobileCardsY : desktopCardsY;
+  const cardsOpacity = isMobile ? mobileCardsOpacity : desktopCardsOpacity;
 
   const horizontalX = useTransform(
     smoothProgress,
-    [0, 0.34, 0.42, 0.90],
+    isMobile ? [0, 0.28, 0.36, 0.92] : [0, 0.34, 0.42, 0.90],
     [
       `-${startScrollToCenter}px`,
       `-${startScrollToCenter}px`,
@@ -285,10 +343,15 @@ const Testimonials: React.FC = () => {
     ]
   );
 
-  const holdAfterLastOpacity = useTransform(smoothProgress, [0.88, 0.90, 1], [1, 1, 0]);
+  const holdAfterLastOpacity = useTransform(
+    smoothProgress,
+    isMobile ? [0.9, 0.93, 1] : [0.88, 0.90, 1],
+    [1, 1, 0]
+  );
+
   const scrollHintOpacity = useTransform(
     smoothProgress,
-    [0.28, 0.36, 0.86, 0.94],
+    isMobile ? [0.30, 0.38, 0.88, 0.95] : [0.28, 0.36, 0.86, 0.94],
     [0, 0.4, 0.4, 0]
   );
 
