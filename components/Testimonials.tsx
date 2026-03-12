@@ -91,14 +91,24 @@ const TestimonialCard: React.FC<TestimonialCardProps> = ({
 };
 
 const Testimonials: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
+  // ── Refs ──────────────────────────────────────────────────────────────────
+  const containerRef   = useRef<HTMLDivElement>(null);
+  const trackRef       = useRef<HTMLDivElement>(null);       // desktop only
+  const mobileTrackRef = useRef<HTMLDivElement>(null);       // mobile only
 
+  // ── Desktop scroll-jacking state (unchanged) ──────────────────────────────
   const [startScrollToCenter, setStartScrollToCenter] = useState(0);
-  const [maxScrollToCenter, setMaxScrollToCenter] = useState(0);
-  const [sectionHeightPx, setSectionHeightPx] = useState<number | null>(null);
-  const [logosReady, setLogosReady] = useState(false);
+  const [maxScrollToCenter,   setMaxScrollToCenter]   = useState(0);
+  const [sectionHeightPx,     setSectionHeightPx]     = useState<number | null>(null);
+  const [logosReady,          setLogosReady]           = useState(false);
 
+  // ── Mobile UI state ────────────────────────────────────────────────────────
+  const [activeCard,   setActiveCard]   = useState(0);
+  const [isMobileView, setIsMobileView] = useState<boolean>(
+    () => typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
+
+  // ── Testimonials data (unchanged) ─────────────────────────────────────────
   const testimonials: TestimonialItem[] = [
     {
       author: 'Fairly',
@@ -116,8 +126,7 @@ const Testimonials: React.FC = () => {
       author: 'Elevated Escapes',
       role: 'Client',
       company: 'Elevated Escapes',
-      quote:
-        'VIS consistently delivers exceptional housekeeping and maintenance services.',
+      quote: 'VIS consistently delivers exceptional housekeeping and maintenance services.',
       description:
         'Every property is left absolutely spotless after each clean, which has helped us consistently earn 5-star reviews from our guests. Their inspectors are incredibly meticulous, carefully identifying even the smallest maintenance issues and ensuring they are addressed immediately. Their attention to detail and commitment to excellence truly set them apart.',
       avatar: '',
@@ -150,6 +159,7 @@ const Testimonials: React.FC = () => {
     },
   ];
 
+  // ── Logo preload (unchanged) ───────────────────────────────────────────────
   const logoUrls = useMemo(() => {
     return testimonials
       .map((item) => item.logo)
@@ -157,61 +167,55 @@ const Testimonials: React.FC = () => {
   }, [testimonials]);
 
   useEffect(() => {
-    if (logoUrls.length === 0) {
-      setLogosReady(true);
-      return;
-    }
-
+    if (logoUrls.length === 0) { setLogosReady(true); return; }
     let isCancelled = false;
-
     const preloadLogos = async () => {
       try {
         await Promise.all(
           logoUrls.map(
-            (src) =>
-              new Promise<void>((resolve) => {
-                const img = new Image();
-                img.onload = () => resolve();
-                img.onerror = () => resolve();
-                img.src = src;
-              })
+            (src) => new Promise<void>((resolve) => {
+              const img = new Image();
+              img.onload = () => resolve();
+              img.onerror = () => resolve();
+              img.src = src;
+            })
           )
         );
-
-        if (!isCancelled) {
-          setLogosReady(true);
-        }
+        if (!isCancelled) setLogosReady(true);
       } catch {
-        if (!isCancelled) {
-          setLogosReady(true);
-        }
+        if (!isCancelled) setLogosReady(true);
       }
     };
-
     preloadLogos();
-
-    return () => {
-      isCancelled = true;
-    };
+    return () => { isCancelled = true; };
   }, [logoUrls]);
 
-  const calculateBounds = useCallback(() => {
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const isMobile = viewportWidth < 768;
+  // ── Track isMobileView on resize ──────────────────────────────────────────
+  useEffect(() => {
+    const check = () => setIsMobileView(window.innerWidth < 768);
+    window.addEventListener('resize', check);
+    window.addEventListener('orientationchange', check);
+    return () => {
+      window.removeEventListener('resize', check);
+      window.removeEventListener('orientationchange', check);
+    };
+  }, []);
 
-    // ── MOBILE: no scroll-jacking needed, use shorter section height ──
+  // ── calculateBounds: desktop unchanged, mobile = auto height ─────────────
+  const calculateBounds = useCallback(() => {
+    const viewportWidth  = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const isMobile       = viewportWidth < 768;
+
     if (isMobile) {
+      // Mobile uses natural document flow — no fixed height needed
       setStartScrollToCenter(0);
       setMaxScrollToCenter(0);
-      // Enough height for: title animation + cards entry + comfortable hold
-      const intro = viewportHeight * 1.0;
-      const extra = viewportHeight * 0.7;
-      setSectionHeightPx(viewportHeight + intro + extra);
+      setSectionHeightPx(null);
       return;
     }
 
-    // ── DESKTOP: original logic unchanged ──
+    // ── Desktop: original logic, completely unchanged ──
     if (!trackRef.current) return;
 
     const cards = Array.from(
@@ -222,56 +226,50 @@ const Testimonials: React.FC = () => {
       const fallbackMax = Math.max(0, trackRef.current.scrollWidth - viewportWidth);
       setStartScrollToCenter(0);
       setMaxScrollToCenter(fallbackMax);
-
-      const intro = viewportHeight * 0.9;
+      const intro      = viewportHeight * 0.9;
       const horizontal = fallbackMax * 1.35;
-      const extra = viewportHeight * 0.55;
-
+      const extra      = viewportHeight * 0.55;
       setSectionHeightPx(viewportHeight + intro + horizontal + extra);
       return;
     }
 
     const first = cards[0];
-    const last = cards[cards.length - 1];
+    const last  = cards[cards.length - 1];
 
     const centerOffset = (el: HTMLElement) => {
-      const left = el.offsetLeft;
+      const left  = el.offsetLeft;
       const width = el.offsetWidth;
       return left + width / 2 - viewportWidth / 2;
     };
 
     const start = Math.max(0, centerOffset(first));
-    const end = Math.max(start, centerOffset(last));
+    const end   = Math.max(start, centerOffset(last));
 
     setStartScrollToCenter(start);
     setMaxScrollToCenter(end);
 
-    const intro = viewportHeight * 0.9;
+    const intro      = viewportHeight * 0.9;
     const horizontal = (end - start) * 1.35;
-    const extra = viewportHeight * 0.55;
-
+    const extra      = viewportHeight * 0.55;
     setSectionHeightPx(viewportHeight + intro + horizontal + extra);
   }, []);
 
   useEffect(() => {
     if (!logosReady) return;
-
     calculateBounds();
-
-    const timeout1 = setTimeout(calculateBounds, 120);
-    const timeout2 = setTimeout(calculateBounds, 300);
-
+    const t1 = setTimeout(calculateBounds, 120);
+    const t2 = setTimeout(calculateBounds, 300);
     window.addEventListener('resize', calculateBounds);
     window.addEventListener('orientationchange', calculateBounds);
-
     return () => {
-      clearTimeout(timeout1);
-      clearTimeout(timeout2);
+      clearTimeout(t1);
+      clearTimeout(t2);
       window.removeEventListener('resize', calculateBounds);
       window.removeEventListener('orientationchange', calculateBounds);
     };
   }, [logosReady, calculateBounds]);
 
+  // ── Desktop scroll transforms (all unchanged) ─────────────────────────────
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ['start start', 'end end'],
@@ -284,25 +282,11 @@ const Testimonials: React.FC = () => {
   });
 
   const titleOpacity = useTransform(smoothProgress, [0, 0.06, 0.18, 0.3], [0, 1, 1, 0]);
-  const titleScale = useTransform(smoothProgress, [0.18, 0.3], [1, 0.7]);
-  const titleY = useTransform(smoothProgress, [0, 0.06], ['80px', '0px']);
+  const titleScale   = useTransform(smoothProgress, [0.18, 0.3], [1, 0.7]);
+  const titleY       = useTransform(smoothProgress, [0, 0.06], ['80px', '0px']);
 
-  const isMobileProgressStart = 0.18;
-  const isMobileProgressCenter = 0.34;
-
-  const mobileCardsY = useTransform(
-    smoothProgress,
-    [isMobileProgressStart, isMobileProgressCenter],
-    ['100vh', '0vh']
-  );
-  const mobileCardsOpacity = useTransform(
-    smoothProgress,
-    [isMobileProgressStart + 0.03, isMobileProgressCenter - 0.01],
-    [0, 1]
-  );
-
-  const desktopCardsY = useTransform(smoothProgress, [0.12, 0.32], ['100vh', '0vh']);
-  const desktopCardsOpacity = useTransform(smoothProgress, [0.18, 0.3], [0, 1]);
+  const desktopCardsY       = useTransform(smoothProgress, [0.12, 0.32], ['100vh', '0vh']);
+  const desktopCardsOpacity = useTransform(smoothProgress, [0.18, 0.3],  [0, 1]);
 
   const desktopHorizontalX = useTransform(
     smoothProgress,
@@ -316,16 +300,63 @@ const Testimonials: React.FC = () => {
   );
 
   const holdAfterLastOpacity = useTransform(smoothProgress, [0.88, 0.90, 1], [1, 1, 0]);
-  const scrollHintOpacity = useTransform(
+  const scrollHintOpacity    = useTransform(
     smoothProgress,
     [0.28, 0.36, 0.86, 0.94],
     [0, 0.4, 0.4, 0]
   );
 
+  // ── Section height: auto on mobile, calculated on desktop ─────────────────
   const sectionStyle = useMemo<React.CSSProperties>(() => {
+    if (isMobileView) return {};
     return sectionHeightPx ? { height: `${sectionHeightPx}px` } : { height: '640vh' };
-  }, [sectionHeightPx]);
+  }, [sectionHeightPx, isMobileView]);
 
+  // ── Mobile: detect active card from scroll position ───────────────────────
+  const handleMobileScroll = useCallback(() => {
+    if (!mobileTrackRef.current) return;
+    const container = mobileTrackRef.current;
+    const snapCards = Array.from(
+      container.querySelectorAll<HTMLElement>('[data-snap-card]')
+    );
+    if (snapCards.length === 0) return;
+
+    const containerCenter = container.scrollLeft + container.clientWidth / 2;
+    let closestIndex = 0;
+    let closestDist  = Infinity;
+
+    snapCards.forEach((card, i) => {
+      const cardCenter = card.offsetLeft + card.offsetWidth / 2;
+      const dist = Math.abs(cardCenter - containerCenter);
+      if (dist < closestDist) { closestDist = dist; closestIndex = i; }
+    });
+
+    setActiveCard(closestIndex);
+  }, []);
+
+  // ── Mobile: programmatic scroll to card ───────────────────────────────────
+  const scrollToCard = useCallback((index: number) => {
+    if (!mobileTrackRef.current) return;
+    const clamped   = Math.max(0, Math.min(index, testimonials.length - 1));
+    const snapCards = Array.from(
+      mobileTrackRef.current.querySelectorAll<HTMLElement>('[data-snap-card]')
+    );
+    if (snapCards[clamped]) {
+      snapCards[clamped].scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      });
+    }
+  }, [testimonials.length]);
+
+  // ── Arrow colours ──────────────────────────────────────────────────────────
+  const GREEN = '#16a34a';
+  const GRAY  = 'rgba(0,0,0,0.18)';
+  const leftColor  = activeCard > 0                        ? GREEN : GRAY;
+  const rightColor = activeCard < testimonials.length - 1  ? GREEN : GRAY;
+
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <section
       ref={containerRef}
@@ -333,12 +364,17 @@ const Testimonials: React.FC = () => {
       className="relative bg-cream"
       style={sectionStyle}
     >
-      <div className="sticky top-0 h-screen w-full flex flex-col items-center justify-center overflow-hidden pt-[clamp(72px,10vh,120px)]">
+
+      {/* ══════════════════════════════════════════════════════════════════
+          DESKTOP — sticky scroll-jacking, 100% original, zero changes
+      ══════════════════════════════════════════════════════════════════ */}
+      <div className="sticky top-0 h-screen w-full hidden md:flex flex-col items-center justify-center overflow-hidden pt-[clamp(72px,10vh,120px)]">
+
         <motion.div
           style={{ opacity: titleOpacity, scale: titleScale, y: titleY }}
           className="absolute z-20 text-center pointer-events-none w-full"
         >
-          <h3 className="text-[30px] md:text-8xl font-black text-primary tracking-[0.4em] uppercase mb-4 drop-shadow-sm pl-[0.4em]">
+          <h3 className="text-8xl font-black text-primary tracking-[0.4em] uppercase mb-4 drop-shadow-sm pl-[0.4em]">
             TESTIMONIALS
           </h3>
           <motion.div
@@ -347,8 +383,7 @@ const Testimonials: React.FC = () => {
           />
         </motion.div>
 
-        {/* ── DESKTOP: original scroll-jacking horizontal, unchanged ── */}
-        <div className="relative z-10 w-full hidden md:block">
+        <div className="relative z-10 w-full">
           <motion.div style={{ y: desktopCardsY, opacity: desktopCardsOpacity }}>
             <motion.div
               ref={trackRef}
@@ -360,42 +395,6 @@ const Testimonials: React.FC = () => {
               ))}
               <div className="flex-shrink-0 w-[5vw]" />
             </motion.div>
-          </motion.div>
-        </div>
-
-        {/* ── MOBILE: native horizontal swipe with scroll-snap ── */}
-        <div className="relative z-10 w-full md:hidden">
-          <motion.div
-            style={{ y: mobileCardsY, opacity: mobileCardsOpacity }}
-            className="w-full"
-          >
-            <div
-              className="flex gap-[16px] py-10 w-full"
-              style={{
-                overflowX: 'scroll',
-                overflowY: 'hidden',
-                scrollSnapType: 'x mandatory',
-                WebkitOverflowScrolling: 'touch',
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none',
-                paddingLeft: 'calc(50vw - 45vw)',
-                paddingRight: 'calc(50vw - 45vw)',
-              }}
-            >
-              {/* hide native scrollbar on webkit */}
-              <style>{`
-                .testimonials-mobile-track::-webkit-scrollbar { display: none; }
-              `}</style>
-              {testimonials.map((t, i) => (
-                <div
-                  key={i}
-                  style={{ scrollSnapAlign: 'center', flexShrink: 0 }}
-                >
-                  <TestimonialCard {...t} />
-                </div>
-              ))}
-              <div style={{ flexShrink: 0, width: '12vw' }} />
-            </div>
           </motion.div>
         </div>
 
@@ -420,6 +419,136 @@ const Testimonials: React.FC = () => {
           Scroll to continue
         </motion.div>
       </div>
+
+
+      {/* ══════════════════════════════════════════════════════════════════
+          MOBILE — normal document flow, native horizontal swipe
+      ══════════════════════════════════════════════════════════════════ */}
+      <div className="md:hidden w-full flex flex-col items-center pt-[clamp(72px,10vh,100px)] pb-16">
+
+        {/* Title: fade + slide up on scroll into view */}
+        <motion.div
+          initial={{ opacity: 0, y: 80 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.5 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="text-center w-full mb-10 pointer-events-none"
+        >
+          <h3 className="text-[30px] font-black text-primary tracking-[0.4em] uppercase mb-4 drop-shadow-sm pl-[0.4em]">
+            TESTIMONIALS
+          </h3>
+          <div className="h-1.5 bg-accent mx-auto rounded-full" style={{ width: '120px' }} />
+        </motion.div>
+
+        {/* Cards area: fade + slide up on scroll into view */}
+        <motion.div
+          initial={{ opacity: 0, y: 60 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.55, ease: 'easeOut', delay: 0.15 }}
+          className="w-full flex flex-col items-center"
+        >
+
+          {/* ── Arrow indicators ─────────────────────────────────────── */}
+          <div className="flex items-center justify-center gap-10 mb-4">
+
+            {/* Left arrow */}
+            <button
+              aria-label="Previous testimonial"
+              onClick={() => scrollToCard(activeCard - 1)}
+              disabled={activeCard === 0}
+              style={{
+                color:      leftColor,
+                transition: 'color 0.35s ease',
+                background: 'none',
+                border:     'none',
+                padding:    '6px 10px',
+                cursor:     activeCard === 0 ? 'default' : 'pointer',
+              }}
+            >
+              <svg width="28" height="14" viewBox="0 0 28 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <line x1="27" y1="7" x2="1" y2="7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                <polyline points="7,1 1,7 7,13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+
+            {/* Right arrow */}
+            <button
+              aria-label="Next testimonial"
+              onClick={() => scrollToCard(activeCard + 1)}
+              disabled={activeCard === testimonials.length - 1}
+              style={{
+                color:      rightColor,
+                transition: 'color 0.35s ease',
+                background: 'none',
+                border:     'none',
+                padding:    '6px 10px',
+                cursor:     activeCard === testimonials.length - 1 ? 'default' : 'pointer',
+              }}
+            >
+              <svg width="28" height="14" viewBox="0 0 28 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <line x1="1" y1="7" x2="27" y2="7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                <polyline points="21,1 27,7 21,13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+
+          </div>
+
+          {/* ── Horizontal scroll track ───────────────────────────────── */}
+          <style>{`.vis-mobile-track::-webkit-scrollbar { display: none; }`}</style>
+          <div
+            ref={mobileTrackRef}
+            onScroll={handleMobileScroll}
+            className="vis-mobile-track flex gap-[16px] py-4 w-full"
+            style={{
+              overflowX: 'scroll',
+              overflowY: 'hidden',
+              scrollSnapType: 'x mandatory',
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              paddingLeft:  'calc(50vw - 45vw)',
+              paddingRight: 'calc(50vw - 45vw)',
+            }}
+          >
+            {testimonials.map((t, i) => (
+              <div
+                key={i}
+                data-snap-card
+                style={{ scrollSnapAlign: 'center', flexShrink: 0 }}
+              >
+                <TestimonialCard {...t} />
+              </div>
+            ))}
+            {/* trailing spacer so last card centres properly */}
+            <div style={{ flexShrink: 0, width: '12vw' }} />
+          </div>
+
+          {/* ── Dot pagination ────────────────────────────────────────── */}
+          <div className="flex items-center justify-center gap-[10px] mt-5">
+            {testimonials.map((_, i) => (
+              <button
+                key={i}
+                aria-label={`Go to testimonial ${i + 1}`}
+                onClick={() => scrollToCard(i)}
+                style={{
+                  width:        i === activeCard ? '22px' : '8px',
+                  height:       '8px',
+                  borderRadius: '4px',
+                  background:   i === activeCard ? GREEN : GRAY,
+                  border:       'none',
+                  padding:      0,
+                  cursor:       'pointer',
+                  transition:   'width 0.3s ease, background 0.3s ease',
+                  flexShrink:   0,
+                }}
+              />
+            ))}
+          </div>
+
+        </motion.div>
+      </div>
+
     </section>
   );
 };
