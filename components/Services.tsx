@@ -357,8 +357,9 @@ const Services: React.FC = () => {
           height: 100%;
           overflow-y: auto;
           overflow-x: hidden;
-          padding-right: 10px;
-          margin-right: 4px;
+          padding-right: 8px;
+          padding-left: 2px;
+          margin-right: 2px;
         }
       `}</style>
 
@@ -531,12 +532,12 @@ const Services: React.FC = () => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.98 }}
               transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed inset-0 z-[201] flex justify-center"
+              className="fixed inset-0 z-[201] flex items-center justify-center"
               style={{
                 paddingTop: `${navOffsetPx}px`,
                 paddingLeft: '16px',
                 paddingRight: '16px',
-                paddingBottom: '18px',
+                paddingBottom: 'max(32px, env(safe-area-inset-bottom, 32px))',
               }}
               onClick={closeModal}
             >
@@ -545,7 +546,7 @@ const Services: React.FC = () => {
                   className="w-full rounded-[2.25rem] shadow-2xl overflow-hidden bg-white"
                   style={{
                     maxWidth: 'min(720px, 92vw)',
-                    height: `calc(100vh - ${navOffsetPx}px - 10px)`,
+                    height: `calc(100dvh - ${navOffsetPx}px - max(32px, env(safe-area-inset-bottom, 32px)) - 16px)`,
                   }}
                 >
                   <div
@@ -560,7 +561,7 @@ const Services: React.FC = () => {
                     </button>
 
                     <div className="h-full flex flex-col" style={{ paddingTop: '6px' }}>
-                      <div className="flex-shrink-0 pr-12">
+                      <div className="flex-shrink-0 pr-10 text-center">
                         <div className="inline-block px-4 py-1.5 rounded-full bg-accent/10 text-[10px] text-accent font-black uppercase tracking-[0.2em] mb-4">
                           Service Details
                         </div>
@@ -580,6 +581,7 @@ const Services: React.FC = () => {
 
                       <div className="flex-1 min-h-0">
                         <div className="modal-scroll-area elegant-scroll">
+                          <div className="px-1">
                           {selectedService === 1 ? (
                             <div className="space-y-4 pb-6">
                               <motion.div
@@ -590,7 +592,7 @@ const Services: React.FC = () => {
                                 style={{ padding: 'clamp(14px, 1.35vw, 18px)' }}
                               >
                                 <h3
-                                  className="text-primary mb-3"
+                                  className="text-primary mb-3 text-center"
                                   style={{
                                     fontSize: 'clamp(0.98rem, 1.02vw, 1.08rem)',
                                     fontWeight: 700,
@@ -671,7 +673,7 @@ const Services: React.FC = () => {
                                 style={{ padding: 'clamp(14px, 1.35vw, 18px)' }}
                               >
                                 <h3
-                                  className="text-primary mb-3"
+                                  className="text-primary mb-3 text-center"
                                   style={{
                                     fontSize: 'clamp(0.98rem, 1.02vw, 1.08rem)',
                                     fontWeight: 700,
@@ -851,6 +853,7 @@ const Services: React.FC = () => {
                                 ))}
                             </div>
                           )}
+                          </div>
                         </div>
                       </div>
                     </div>
