@@ -16,7 +16,7 @@ interface AnimatedServiceCardProps extends ServiceCardProps {
   range: [number, number];
   onExplore: () => void;
   className?: string;
-  style?: any;
+  style?: React.CSSProperties;
 }
 
 const ServiceCard: React.FC<AnimatedServiceCardProps> = ({
@@ -201,19 +201,31 @@ const Services: React.FC = () => {
 
   const [wrapperHeightPx, setWrapperHeightPx] = useState<number>(0);
   const [navOffsetPx, setNavOffsetPx] = useState<number>(110);
-  const [activeMobileCard, setActiveMobileCard] = useState<number>(1);
+
+  const [isMobile, setIsMobile] = useState(false);
+  const [isMobileSectionActive, setIsMobileSectionActive] = useState(false);
+  const [mobileStep, setMobileStep] = useState(0);
+  const [mobileReleased, setMobileReleased] = useState(false);
+
+  const touchStartYRef = useRef<number | null>(null);
+  const gestureLockRef = useRef(false);
 
   useEffect(() => {
     const calc = () => {
       const vh = window.innerHeight;
       const vw = window.innerWidth;
+      const mobileViewport = vw < 768;
 
-      let screens = 6.15;
+      setIsMobile(mobileViewport);
+
+      let screens = 4.35;
+
       if (vw >= 768) screens = 4.8;
       if (vw >= 1024) screens = 4.4;
       if (vw >= 1366) screens = 4.9;
-      if (vw < 768 && vh < 780) screens += 0.35;
-      if (vh < 720) screens += 0.25;
+
+      if (mobileViewport && vh < 780) screens += 0.18;
+      if (mobileViewport && vh < 720) screens += 0.12;
 
       setWrapperHeightPx(Math.round(vh * screens));
       setNavOffsetPx(vw >= 768 ? 120 : 104);
@@ -222,6 +234,7 @@ const Services: React.FC = () => {
     calc();
     window.addEventListener('resize', calc);
     window.addEventListener('orientationchange', calc);
+
     return () => {
       window.removeEventListener('resize', calc);
       window.removeEventListener('orientationchange', calc);
@@ -239,73 +252,133 @@ const Services: React.FC = () => {
     mass: 0.42,
   });
 
-  const mobileProgress = scrollYProgress;
+  useMotionValueEvent(scrollYProgress, 'change', (latest) => {
+    const active = latest > 0.02 && latest < 0.985;
+    setIsMobileSectionActive(active);
 
-  useMotionValueEvent(mobileProgress, 'change', (latest) => {
-    if (latest < 0.36) {
-      setActiveMobileCard(1);
-    } else if (latest < 0.66) {
-      setActiveMobileCard(2);
-    } else {
-      setActiveMobileCard(3);
+    if (latest <= 0.015) {
+      setMobileReleased(false);
     }
   });
+
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const triggerStep = (direction: 'down' | 'up') => {
+      if (!isMobileSectionActive) return false;
+      if (gestureLockRef.current) return true;
+
+      if (direction === 'down') {
+        if (!mobileReleased) {
+          gestureLockRef.current = true;
+
+          if (mobileStep < 3) {
+            setMobileStep((prev) => Math.min(prev + 1, 3));
+          } else {
+            setMobileReleased(true);
+          }
+
+          window.setTimeout(() => {
+            gestureLockRef.current = false;
+          }, 520);
+
+          return true;
+        }
+
+        return false;
+      }
+
+      if (direction === 'up') {
+        if (mobileReleased) {
+          gestureLockRef.current = true;
+          setMobileReleased(false);
+
+          window.setTimeout(() => {
+            gestureLockRef.current = false;
+          }, 320);
+
+          return true;
+        }
+
+        if (mobileStep > 0) {
+          gestureLockRef.current = true;
+          setMobileStep((prev) => Math.max(prev - 1, 0));
+
+          window.setTimeout(() => {
+            gestureLockRef.current = false;
+          }, 520);
+
+          return true;
+        }
+
+        return false;
+      }
+
+      return false;
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      if (!isMobileSectionActive || !isMobile) return;
+
+      const delta = e.deltaY;
+
+      if (delta > 14) {
+        const handled = triggerStep('down');
+        if (handled) e.preventDefault();
+      } else if (delta < -14) {
+        const handled = triggerStep('up');
+        if (handled) e.preventDefault();
+      }
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartYRef.current = e.touches[0]?.clientY ?? null;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isMobileSectionActive || !isMobile) return;
+      if (touchStartYRef.current === null) return;
+
+      const currentY = e.touches[0]?.clientY ?? touchStartYRef.current;
+      const delta = touchStartYRef.current - currentY;
+
+      if (Math.abs(delta) < 26) return;
+
+      if (delta > 0) {
+        const handled = triggerStep('down');
+        if (handled) {
+          e.preventDefault();
+          touchStartYRef.current = currentY;
+        }
+      } else {
+        const handled = triggerStep('up');
+        if (handled) {
+          e.preventDefault();
+          touchStartYRef.current = currentY;
+        }
+      }
+    };
+
+    const onTouchEnd = () => {
+      touchStartYRef.current = null;
+    };
+
+    window.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', onTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener('wheel', onWheel as EventListener);
+      window.removeEventListener('touchstart', onTouchStart as EventListener);
+      window.removeEventListener('touchmove', onTouchMove as EventListener);
+      window.removeEventListener('touchend', onTouchEnd as EventListener);
+    };
+  }, [isMobile, isMobileSectionActive, mobileReleased, mobileStep]);
 
   const bigTitleOpacity = useTransform(smoothProgress, [0, 0.12], [0, 0.07]);
   const titleOpacity = useTransform(smoothProgress, [0, 0.12], [0, 1]);
   const titleY = useTransform(smoothProgress, [0, 0.12], [10, 0]);
-
-  const titleMobileOpacity = useTransform(mobileProgress, [0.03, 0.13, 0.19], [0, 1, 1]);
-  const titleMobileY = useTransform(mobileProgress, [0.03, 0.13], [22, 0]);
-  const titleMobileScale = useTransform(mobileProgress, [0.03, 0.13], [0.985, 1]);
-
-  const mCard1Y = useTransform(
-    mobileProgress,
-    [0.18, 0.28, 0.36, 0.44],
-    [150, 0, 0, -26]
-  );
-  const mCard1Scale = useTransform(
-    mobileProgress,
-    [0.18, 0.28, 0.36, 0.44],
-    [0.94, 1, 1, 0.984]
-  );
-  const mCard1Opacity = useTransform(
-    mobileProgress,
-    [0.18, 0.28, 0.36, 0.44],
-    [0, 1, 1, 0.82]
-  );
-
-  const mCard2Y = useTransform(
-    mobileProgress,
-    [0.44, 0.56, 0.66, 0.74],
-    [170, 0, 0, -26]
-  );
-  const mCard2Scale = useTransform(
-    mobileProgress,
-    [0.44, 0.56, 0.66, 0.74],
-    [0.94, 1, 1, 0.984]
-  );
-  const mCard2Opacity = useTransform(
-    mobileProgress,
-    [0.44, 0.56, 0.66, 0.74],
-    [0, 1, 1, 0.84]
-  );
-
-  const mCard3Y = useTransform(
-    mobileProgress,
-    [0.72, 0.84, 0.96, 1],
-    [170, 0, 0, 0]
-  );
-  const mCard3Scale = useTransform(
-    mobileProgress,
-    [0.72, 0.84, 0.96, 1],
-    [0.94, 1, 1, 1]
-  );
-  const mCard3Opacity = useTransform(
-    mobileProgress,
-    [0.72, 0.84, 0.96, 1],
-    [0, 1, 1, 1]
-  );
 
   const serviceData = useMemo(
     () => [
@@ -343,6 +416,42 @@ const Services: React.FC = () => {
 
   const closeModal = () => setSelectedService(null);
 
+  const getMobileCardAnimate = (index: number) => {
+    const visible = mobileStep >= index;
+    const isActive = mobileStep === index;
+    const isPast = mobileStep > index;
+
+    if (!visible) {
+      return {
+        y: 170,
+        opacity: 0,
+        scale: 0.94,
+      };
+    }
+
+    if (isActive) {
+      return {
+        y: 0,
+        opacity: 1,
+        scale: 1,
+      };
+    }
+
+    if (isPast) {
+      return {
+        y: -22,
+        opacity: 0.82,
+        scale: 0.985,
+      };
+    }
+
+    return {
+      y: 0,
+      opacity: 1,
+      scale: 1,
+    };
+  };
+
   return (
     <section id="services" className="bg-cream scroll-mt-28 md:scroll-mt-36">
       <style>{`
@@ -351,17 +460,17 @@ const Services: React.FC = () => {
           scrollbar-color: rgba(49, 103, 101, 0.58) transparent;
           scroll-behavior: smooth;
         }
-      
+
         .elegant-scroll::-webkit-scrollbar {
           width: 8px;
         }
-      
+
         .elegant-scroll::-webkit-scrollbar-track {
           background: transparent;
           border-radius: 999px;
           margin: 10px 0;
         }
-      
+
         .elegant-scroll::-webkit-scrollbar-thumb {
           background: linear-gradient(
             180deg,
@@ -371,7 +480,7 @@ const Services: React.FC = () => {
           border-radius: 999px;
           border: 1.5px solid rgba(255, 255, 255, 0.95);
         }
-      
+
         .elegant-scroll::-webkit-scrollbar-thumb:hover {
           background: linear-gradient(
             180deg,
@@ -379,7 +488,7 @@ const Services: React.FC = () => {
             rgba(49, 103, 101, 1) 100%
           );
         }
-      
+
         .modal-scroll-area {
           height: 100%;
           overflow-y: auto;
@@ -392,7 +501,7 @@ const Services: React.FC = () => {
       <div
         ref={containerRef}
         className="relative"
-        style={{ height: wrapperHeightPx ? `${wrapperHeightPx}px` : '520vh' }}
+        style={{ height: wrapperHeightPx ? `${wrapperHeightPx}px` : '435vh' }}
       >
         <div className="sticky top-0 h-screen w-full overflow-hidden px-6">
           <div className="max-w-7xl mx-auto w-full h-full">
@@ -420,11 +529,13 @@ const Services: React.FC = () => {
 
               <div className="md:hidden mb-10">
                 <motion.div
-                  style={{
-                    opacity: titleMobileOpacity,
-                    y: titleMobileY,
-                    scale: titleMobileScale,
+                  initial={{ opacity: 0, y: 18, scale: 0.985 }}
+                  animate={{
+                    opacity: mobileStep === 0 ? 1 : mobileStep === 1 ? 0.92 : 0.42,
+                    y: mobileStep === 0 ? 0 : mobileStep === 1 ? -2 : -10,
+                    scale: 1,
                   }}
+                  transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
                   className="text-center"
                 >
                   <h2 className="text-4xl font-bold text-primary tracking-tight uppercase mb-4">
@@ -469,65 +580,71 @@ const Services: React.FC = () => {
 
               <div className="md:hidden relative flex-1 flex items-center justify-center">
                 <div className="relative w-full" style={{ height: 'clamp(350px, 48vh, 500px)' }}>
-                  <ServiceCard
-                    number="#01"
-                    category="Estate Management"
-                    title="Property Management & Maintenance"
-                    description="From preventive technical support to seamless vendor coordination, we handle every operational detail. Our dedicated team acts as your local eyes and ears."
-                    direction="up"
-                    progress={smoothProgress}
-                    range={[0.18, 0.28]}
-                    onExplore={() => setSelectedService(1)}
+                  <motion.div
+                    animate={getMobileCardAnimate(1)}
+                    transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
                     style={{
-                      y: mCard1Y,
-                      scale: mCard1Scale,
-                      opacity: mCard1Opacity,
                       position: 'absolute',
                       inset: 0,
-                      zIndex: activeMobileCard === 1 ? 30 : 20,
-                      pointerEvents: activeMobileCard === 1 ? 'auto' : 'none',
+                      zIndex: mobileStep >= 2 ? 20 : 30,
+                      pointerEvents: mobileStep === 1 ? 'auto' : 'none',
                     }}
-                  />
+                  >
+                    <ServiceCard
+                      number="#01"
+                      category="Estate Management"
+                      title="Property Management & Maintenance"
+                      description="From preventive technical support to seamless vendor coordination, we handle every operational detail. Our dedicated team acts as your local eyes and ears."
+                      direction="up"
+                      progress={smoothProgress}
+                      range={[0.08, 0.18]}
+                      onExplore={() => setSelectedService(1)}
+                    />
+                  </motion.div>
 
-                  <ServiceCard
-                    number="#02"
-                    category="Hygiene Standards"
-                    title="Cleaning Services"
-                    description="Professional cleaning services for homes and commercial spaces, including routine, deep, and specialized cleaning, delivering spotless results and consistently high standards."
-                    direction="up"
-                    progress={smoothProgress}
-                    range={[0.44, 0.56]}
-                    onExplore={() => setSelectedService(2)}
+                  <motion.div
+                    animate={getMobileCardAnimate(2)}
+                    transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
                     style={{
-                      y: mCard2Y,
-                      scale: mCard2Scale,
-                      opacity: mCard2Opacity,
                       position: 'absolute',
                       inset: 0,
-                      zIndex: activeMobileCard === 2 ? 30 : activeMobileCard === 1 ? 20 : 20,
-                      pointerEvents: activeMobileCard === 2 ? 'auto' : 'none',
+                      zIndex: mobileStep >= 3 ? 20 : mobileStep === 2 ? 30 : 10,
+                      pointerEvents: mobileStep === 2 ? 'auto' : 'none',
                     }}
-                  />
+                  >
+                    <ServiceCard
+                      number="#02"
+                      category="Hygiene Standards"
+                      title="Cleaning Services"
+                      description="Professional cleaning services for homes and commercial spaces, including routine, deep, and specialized cleaning, delivering spotless results and consistently high standards."
+                      direction="up"
+                      progress={smoothProgress}
+                      range={[0.2, 0.3]}
+                      onExplore={() => setSelectedService(2)}
+                    />
+                  </motion.div>
 
-                  <ServiceCard
-                    number="#03"
-                    category="Guest Hospitality"
-                    title="Concierge Services"
-                    description="Personalized concierge services for owners and guests, including guest assistance, reservations, and lifestyle support, creating seamless experiences and complete peace of mind."
-                    direction="up"
-                    progress={smoothProgress}
-                    range={[0.72, 0.84]}
-                    onExplore={() => setSelectedService(3)}
+                  <motion.div
+                    animate={getMobileCardAnimate(3)}
+                    transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
                     style={{
-                      y: mCard3Y,
-                      scale: mCard3Scale,
-                      opacity: mCard3Opacity,
                       position: 'absolute',
                       inset: 0,
-                      zIndex: activeMobileCard === 3 ? 30 : 10,
-                      pointerEvents: activeMobileCard === 3 ? 'auto' : 'none',
+                      zIndex: mobileStep === 3 ? 30 : 10,
+                      pointerEvents: mobileStep === 3 ? 'auto' : 'none',
                     }}
-                  />
+                  >
+                    <ServiceCard
+                      number="#03"
+                      category="Guest Hospitality"
+                      title="Concierge Services"
+                      description="Personalized concierge services for owners and guests, including guest assistance, reservations, and lifestyle support, creating seamless experiences and complete peace of mind."
+                      direction="up"
+                      progress={smoothProgress}
+                      range={[0.32, 0.42]}
+                      onExplore={() => setSelectedService(3)}
+                    />
+                  </motion.div>
                 </div>
               </div>
             </div>
