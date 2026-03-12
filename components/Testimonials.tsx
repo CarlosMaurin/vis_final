@@ -98,7 +98,6 @@ const Testimonials: React.FC = () => {
   const [maxScrollToCenter, setMaxScrollToCenter] = useState(0);
   const [sectionHeightPx, setSectionHeightPx] = useState<number | null>(null);
   const [logosReady, setLogosReady] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
 
   const testimonials: TestimonialItem[] = [
     {
@@ -158,18 +157,6 @@ const Testimonials: React.FC = () => {
   }, [testimonials]);
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    window.addEventListener('orientationchange', checkMobile);
-
-    return () => {
-      window.removeEventListener('resize', checkMobile);
-      window.removeEventListener('orientationchange', checkMobile);
-    };
-  }, []);
-
-  useEffect(() => {
     if (logoUrls.length === 0) {
       setLogosReady(true);
       return;
@@ -223,18 +210,12 @@ const Testimonials: React.FC = () => {
       setStartScrollToCenter(0);
       setMaxScrollToCenter(fallbackMax);
 
-      if (viewportWidth < 768) {
-        const intro = viewportHeight * 1.0;
-        const horizontal = fallbackMax * 1.55;
-        const extra = viewportHeight * 0.65;
-        setSectionHeightPx(viewportHeight + intro + horizontal + extra);
-      } else {
-        const intro = viewportHeight * 0.9;
-        const horizontal = fallbackMax * 1.35;
-        const extra = viewportHeight * 0.55;
-        setSectionHeightPx(viewportHeight + intro + horizontal + extra);
-      }
+      const isMobile = viewportWidth < 768;
+      const intro = isMobile ? viewportHeight * 1.0 : viewportHeight * 0.9;
+      const horizontal = fallbackMax * (isMobile ? 1.55 : 1.35);
+      const extra = viewportHeight * (isMobile ? 0.7 : 0.55);
 
+      setSectionHeightPx(viewportHeight + intro + horizontal + extra);
       return;
     }
 
@@ -253,17 +234,12 @@ const Testimonials: React.FC = () => {
     setStartScrollToCenter(start);
     setMaxScrollToCenter(end);
 
-    if (viewportWidth < 768) {
-      const intro = viewportHeight * 1.0;
-      const horizontal = (end - start) * 1.55;
-      const extra = viewportHeight * 0.65;
-      setSectionHeightPx(viewportHeight + intro + horizontal + extra);
-    } else {
-      const intro = viewportHeight * 0.9;
-      const horizontal = (end - start) * 1.35;
-      const extra = viewportHeight * 0.55;
-      setSectionHeightPx(viewportHeight + intro + horizontal + extra);
-    }
+    const isMobile = viewportWidth < 768;
+    const intro = isMobile ? viewportHeight * 1.0 : viewportHeight * 0.9;
+    const horizontal = (end - start) * (isMobile ? 1.55 : 1.35);
+    const extra = viewportHeight * (isMobile ? 0.7 : 0.55);
+
+    setSectionHeightPx(viewportHeight + intro + horizontal + extra);
   }, []);
 
   useEffect(() => {
@@ -296,45 +272,37 @@ const Testimonials: React.FC = () => {
     restDelta: 0.001,
   });
 
-  const titleOpacity = useTransform(
-    smoothProgress,
-    isMobile ? [0, 0.05, 0.14, 0.22] : [0, 0.06, 0.18, 0.3],
-    [0, 1, 1, 0]
-  );
+  const titleOpacity = useTransform(smoothProgress, [0, 0.06, 0.18, 0.3], [0, 1, 1, 0]);
+  const titleScale = useTransform(smoothProgress, [0.18, 0.3], [1, 0.7]);
+  const titleY = useTransform(smoothProgress, [0, 0.06], ['80px', '0px']);
 
-  const titleScale = useTransform(
-    smoothProgress,
-    isMobile ? [0.14, 0.22] : [0.18, 0.3],
-    [1, 0.7]
-  );
+  const isMobileProgressStart = 0.18;
+  const isMobileProgressCenter = 0.34;
+  const isMobileHorizontalStart = 0.38;
+  const isMobileHorizontalEnd = 0.9;
 
-  const titleY = useTransform(
+  const mobileCardsY = useTransform(
     smoothProgress,
-    isMobile ? [0, 0.05] : [0, 0.06],
-    ['80px', '0px']
+    [isMobileProgressStart, isMobileProgressCenter],
+    ['100vh', '0vh']
+  );
+  const mobileCardsOpacity = useTransform(
+    smoothProgress,
+    [isMobileProgressStart + 0.03, isMobileProgressCenter - 0.01],
+    [0, 1]
+  );
+  const mobileFirstCardScale = useTransform(
+    smoothProgress,
+    [isMobileProgressStart, isMobileProgressCenter],
+    [0.96, 1]
   );
 
   const desktopCardsY = useTransform(smoothProgress, [0.12, 0.32], ['100vh', '0vh']);
   const desktopCardsOpacity = useTransform(smoothProgress, [0.18, 0.3], [0, 1]);
 
-  const mobileCardsY = useTransform(
+  const desktopHorizontalX = useTransform(
     smoothProgress,
-    [0.12, 0.22, 0.28, 1],
-    ['100vh', '0vh', '0vh', '0vh']
-  );
-
-  const mobileCardsOpacity = useTransform(
-    smoothProgress,
-    [0.14, 0.22],
-    [0, 1]
-  );
-
-  const cardsY = isMobile ? mobileCardsY : desktopCardsY;
-  const cardsOpacity = isMobile ? mobileCardsOpacity : desktopCardsOpacity;
-
-  const horizontalX = useTransform(
-    smoothProgress,
-    isMobile ? [0, 0.28, 0.36, 0.92] : [0, 0.34, 0.42, 0.90],
+    [0, 0.34, 0.42, 0.90],
     [
       `-${startScrollToCenter}px`,
       `-${startScrollToCenter}px`,
@@ -343,15 +311,20 @@ const Testimonials: React.FC = () => {
     ]
   );
 
-  const holdAfterLastOpacity = useTransform(
+  const mobileHorizontalX = useTransform(
     smoothProgress,
-    isMobile ? [0.9, 0.93, 1] : [0.88, 0.90, 1],
-    [1, 1, 0]
+    [0, isMobileHorizontalStart, isMobileHorizontalEnd],
+    [
+      `-${startScrollToCenter}px`,
+      `-${startScrollToCenter}px`,
+      `-${maxScrollToCenter}px`,
+    ]
   );
 
+  const holdAfterLastOpacity = useTransform(smoothProgress, [0.88, 0.90, 1], [1, 1, 0]);
   const scrollHintOpacity = useTransform(
     smoothProgress,
-    isMobile ? [0.30, 0.38, 0.88, 0.95] : [0.28, 0.36, 0.86, 0.94],
+    [0.28, 0.36, 0.86, 0.94],
     [0, 0.4, 0.4, 0]
   );
 
@@ -380,18 +353,43 @@ const Testimonials: React.FC = () => {
           />
         </motion.div>
 
-        <motion.div style={{ y: cardsY, opacity: cardsOpacity }} className="relative z-10 w-full">
-          <motion.div
-            ref={trackRef}
-            style={{ x: horizontalX }}
-            className="flex gap-[clamp(14px,3vw,40px)] px-[clamp(18px,10vw,25vw)] py-10 w-max"
-          >
-            {testimonials.map((t, i) => (
-              <TestimonialCard key={i} {...t} />
-            ))}
-            <div className="flex-shrink-0 w-[5vw]" />
+        <div className="relative z-10 w-full hidden md:block">
+          <motion.div style={{ y: desktopCardsY, opacity: desktopCardsOpacity }}>
+            <motion.div
+              ref={trackRef}
+              style={{ x: desktopHorizontalX }}
+              className="flex gap-[clamp(14px,3vw,40px)] px-[clamp(18px,10vw,25vw)] py-10 w-max"
+            >
+              {testimonials.map((t, i) => (
+                <TestimonialCard key={i} {...t} />
+              ))}
+              <div className="flex-shrink-0 w-[5vw]" />
+            </motion.div>
           </motion.div>
-        </motion.div>
+        </div>
+
+        <div className="relative z-10 w-full md:hidden overflow-hidden">
+          <motion.div
+            style={{ y: mobileCardsY, opacity: mobileCardsOpacity }}
+            className="w-full"
+          >
+            <motion.div
+              ref={trackRef}
+              style={{ x: mobileHorizontalX }}
+              className="flex gap-[16px] px-[calc(50vw-45vw)] py-10 w-max"
+            >
+              {testimonials.map((t, i) => (
+                <motion.div
+                  key={i}
+                  style={i === 0 ? { scale: mobileFirstCardScale } : undefined}
+                >
+                  <TestimonialCard {...t} />
+                </motion.div>
+              ))}
+              <div className="flex-shrink-0 w-[12vw]" />
+            </motion.div>
+          </motion.div>
+        </div>
 
         <div className="absolute bottom-12 w-48 h-0.5 bg-dark/5 rounded-full overflow-hidden">
           <motion.div
